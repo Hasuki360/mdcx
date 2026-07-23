@@ -84,7 +84,7 @@ async def scrape_dl_getchu(client, number: str, appoint_url: str = "", ctx: Cont
         search_url = f"https://dl.getchu.com/search/search_list.php?dojin=1&search_category_id=&search_keyword={keyword2}&btnWordSearch=%B8%A1%BA%F7&action=search&set_category_flag=1"
         if ctx:
             ctx.debug(f"DL Getchu 搜索地址: {search_url}")
-            ctx.debug_info.search_urls.append(search_url)
+            ctx.debug_info.search_urls = [*(ctx.debug_info.search_urls or []), search_url]
 
         html_search, error = await client.get_text(search_url, cookies=cookies, encoding="euc-jp")
         if html_search is None:
@@ -102,7 +102,7 @@ async def scrape_dl_getchu(client, number: str, appoint_url: str = "", ctx: Cont
 
     if ctx:
         ctx.debug(f"DL Getchu 番号地址: {real_url}")
-        ctx.debug_info.detail_urls.append(real_url)
+        ctx.debug_info.detail_urls = [*(ctx.debug_info.detail_urls or []), real_url]
     html_content, error = await client.get_text(real_url, cookies=cookies, encoding="euc-jp")
     if html_content is None:
         raise CralwerException(f"网络请求错误: {error}")
