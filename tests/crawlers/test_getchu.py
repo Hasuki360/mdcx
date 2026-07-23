@@ -10,6 +10,7 @@ from mdcx.crawlers.getchu import (
     get_title,
     normalize_detail_url,
 )
+from mdcx.crawlers.getchu_dl import scrape_dl_getchu
 from mdcx.crawlers.getchu_dmm import GetchuDmmCrawler
 from mdcx.models.types import CrawlerInput
 
@@ -28,6 +29,45 @@ class FakeGetchuClient:
         if url == "https://www.getchu.com/item/1355679/?gc=gc":
             return _detail_html(), ""
         return None, f"unexpected url: {url}"
+
+
+class FakeDlGetchuClient:
+    async def get_text(self, url, **kwargs):
+        if url == "https://dl.getchu.com/i/item4068095":
+            return _dl_detail_html(), ""
+        if url.startswith("https://dl.getchu.com/search/search_list.php?"):
+            return (
+                """
+                <html><body><table><tr>
+                  <td valign="top"><div>
+                    <a href="https://dl.getchu.com/i/item4068095">SEARCH-TITLE Sample</a>
+                  </div></td>
+                </tr></table></body></html>
+                """,
+                "",
+            )
+        return None, f"unexpected url: {url}"
+
+
+def _dl_detail_html() -> str:
+    return """
+    <html>
+      <head>
+        <meta property="og:title" content="DLID-4068095 Sample" />
+        <meta property="og:image" content="https://img.example/4068095.jpg" />
+      </head>
+      <body>
+        <table>
+          <tr><td>サークル</td><td>ハメモレモ</td></tr>
+          <tr><td>配信開始日</td><td>2026/01/30</td></tr>
+          <tr><td>作者</td><td>漏萌ミミオ</td></tr>
+          <tr><td>画像数&ページ数</td><td>44分</td></tr>
+          <tr><td>趣向</td><td><a>同人</a></td></tr>
+          <tr><td>作品内容</td><td>紹介文</td></tr>
+        </table>
+      </body>
+    </html>
+    """
 
 
 def _detail_html() -> str:
@@ -161,6 +201,53 @@ async def test_getchu_dmm_crawler_wraps_getchu_data():
     assert res.data is not None
     assert res.data.source == "getchu_dmm"
     assert res.data.title == "TITLE-001 Sample"
+
+
+@pytest.mark.asyncio
+async def test_dl_getchu_direct_number_initializes_detail_urls():
+    crawler = GetchuCrawler(client=FakeDlGetchuClient())
+    res = await crawler.run(
+        CrawlerInput(
+            appoint_number="",
+            appoint_url="",
+            file_path=None,
+            mosaic="",
+            number="DLID-4068095",
+            short_number="DLID-4068095",
+            language=Language.JP,
+            org_language=Language.JP,
+        )
+    )
+
+    assert res.debug_info.error is None
+    assert res.debug_info.detail_urls == ["https://dl.getchu.com/i/item4068095"]
+    assert res.data is not None
+    assert res.data.number == "DLID-4068095"
+    assert res.data.title == "DLID-4068095 Sample"
+
+
+@pytest.mark.asyncio
+async def test_dl_getchu_title_search_initializes_search_urls():
+    from mdcx.crawlers.base import Context
+
+    ctx = Context(
+        input=CrawlerInput(
+            appoint_number="",
+            appoint_url="",
+            file_path=None,
+            mosaic="",
+            number="SEARCH-TITLE",
+            short_number="SEARCH-TITLE",
+            language=Language.JP,
+            org_language=Language.JP,
+        )
+    )
+
+    data = await scrape_dl_getchu(FakeDlGetchuClient(), "SEARCH-TITLE", ctx=ctx)
+
+    assert ctx.debug_info.search_urls
+    assert ctx.debug_info.detail_urls == ["https://dl.getchu.com/i/item4068095"]
+    assert data.number == "DLID-4068095"
 
 
 def test_getchu_crawlers_are_registered():
