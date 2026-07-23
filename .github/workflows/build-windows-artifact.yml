@@ -1,0 +1,43 @@
+name: Build Windows EXE Artifact
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          activate-environment: true
+
+      - name: Install dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Run Getchu regression tests
+        run: uv run pytest -q tests/crawlers/test_getchu.py
+
+      - name: Build Windows EXE
+        env:
+          PYTHONIOENCODING: utf-8
+        run: uv run scripts/build.py --debug
+
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: MDCx-getchu-fix-windows-x86_64
+          path: dist/MDCx.exe
+          if-no-files-found: error
+          retention-days: 30
